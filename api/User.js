@@ -8,6 +8,8 @@ const transporter = require('./../config/mail');
 const generateRandomPassword = require('./methods/Random');
 const { json } = require('express');
 const fs = require('fs');
+const authenticateToken = require('./../middleware/authMiddleware');
+
 
 
 

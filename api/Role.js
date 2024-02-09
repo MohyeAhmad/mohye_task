@@ -8,11 +8,12 @@ const authenticateToken = require('./../middleware/authMiddleware');
 
 
 
-router.post('/',(req , res)=>{
+router.post('/',authenticateToken , (req , res)=>{
     let {name =''}= req.body;
 name = name.trim() ;
-console.log("signUp is calling . . . ")
 
+console.log("signUp is calling . . . ")
+if (re.roleName == "Admin"){
 if (name == ''){
 
     return res.json({
@@ -61,7 +62,10 @@ Role.find({name}).then(result =>{
     
 
 }
-
+}
+else {
+  res.status(401).json({code :401 , message : 'access denied'})
+}
 
 });
 
@@ -80,7 +84,7 @@ router.get('/', authenticateToken, async (req, res) => {
       const totalCount = await Role.countDocuments(filter);
       const skip = (page - 1) * limit;
   
-      const roles = await Role.find(filter)
+      const roles =  Role.find(filter)
         .skip(skip)
         .limit(+limit);
   
@@ -105,7 +109,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
 
 
-  router.delete('/:id' ,authenticateToken , async (req, res)=>{
+  router.delete('/:id' ,authenticateToken ,  (req, res)=>{
 
      if(!req.roleName == "Admin"){
         res.status(401).json({code : 401 , message : 'access denied '})
@@ -117,7 +121,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
             }
             else{
-             const role = await   Role.findByIdAndDelete(req.params.id);
+             const role =    Role.findByIdAndDelete(req.params.id);
              if (!role){
                 res.json({code :402 , message : 'cant find this role '})
              }
