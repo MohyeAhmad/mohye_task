@@ -12,7 +12,6 @@ function generateRandomPassword(length) {
   return password;
 }
 
-const randomPassword = generateRandomPassword(10);
-console.log('Random Password:', randomPassword);
+
 
 module.exports = generateRandomPassword;

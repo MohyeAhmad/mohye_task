@@ -1,6 +1,8 @@
 
 const express = require('express') ;
 const mongoose = require('mongoose') ;
+
+const moment = require('moment') ;
 const router = express.Router();
 const User = require('./../models/user') ;
 const JoggingEntry = require('./../models/JoggingEntry') ;
@@ -9,11 +11,47 @@ const authenticateToken = require('./../middleware/authMiddleware');
 
 
 router.post('/', authenticateToken , (req, res) => {
-    const { date = '', distance = '', time = '', location = '' , user = req.userId } = req.body;
+    let { date = '', distance = '', time = '', location = '' , user = req.userId } = req.body;
+     let parsedTime , parsedDate  , parsedDistance;
+      
 
+try{
+parsedTime = parseInt(time);
+}
+catch(err){
+  return res.status(400).json({ code : 400 , message: 'not valid time' });
+
+}
+
+try{
+  
+  parsedDate =  moment(date, 'DD-MM-YYYY' ).toDate();
+
+}
+catch(err){
+  return res.status(400).json({ code : 400 , message: 'not valid Date 11'+ err });
+
+
+}
+
+try{
+  parsedDistance = parseInt(distance);
+
+}
+catch(err){
+  return res.status(400).json({ code : 400 , message: 'not valid distance' });
+
+}
 
     if (date == '' || distance == '' || time == '' || location == '' ){
-      res.json({code :402 ,message :  'all field are required '})
+      res.status(400).json({code :400 ,message :  'all field are required '})
+    }
+    else if (! moment(date, 'DD-MM-YYYY', true).isValid()){
+      return res.status(400).json({ code : 400 , message: 'not valid date ' });
+    }
+    else if(isNaN(parsedTime) && parsedTime < 0 ){
+      return res.status(400).json({ code : 400 , message: 'not valid time' });
+
     }
     
     else {
@@ -23,33 +61,43 @@ if ((req.roleName == "Users" || req.roleName == "Manager") && user == ''){
 
     user = req.userId; 
 }
+
     const joggingEntry = new JoggingEntry({
       user,
-      date,
-      distance,
-      time,
+      date : parsedDate,
+      distance : parsedDistance,
+      time : parsedTime,
       location,
     });
   
     joggingEntry
       .save()
       .then(savedEntry => {
-        res.json({code :201 , message :'record saved successfully ' , data : savedEntry});
+        res.json({code :201 , message :'record saved successfully ' ,  data : savedEntry});
       })
       .catch(error => {
-        res.status(500).json({ error: 'Failed to create jogging entry' });
+        res.status(500).json({ code :500 , message : 'Failed to create jogging entry' });
       });
     }
   });
 
 
 router.get('/' ,authenticateToken , async (req,res) =>{
-    const { page = 1, limit = 10, date, distance, time  , location} = req.query;
+    let { page = 1, limit = 10, date = '', distance = '', time  = '' , location ='' , user =req.userId} = req.query;
 
 
     const filter = {};
     if (date) filter.distance = { $regex: new RegExp(date, 'i') };
     if (distance) filter.distance = { $regex: new RegExp(distance, 'i') };
+    if (location) filter.location = { $regex: new RegExp(location, 'i') };
+
+    if (req.roleName == "Admin" || req.roleName == "Manager" ){
+      user = req.user 
+
+    }
+    else{
+      user = req.userId
+    }
     
     // const users = await User.find(filter)
  
@@ -59,7 +107,7 @@ if (req.roleName == 'Admin'){
         const totalCount = await JoggingEntry.countDocuments(filter);
         const skip = (page - 1) * limit;
     
-        const joggs = await JoggingEntry.find(filter)
+        const joggs = await JoggingEntry.find(filter).sort({ date: -1 })
           .skip(skip)
           .limit(+limit);
     
@@ -71,7 +119,7 @@ if (req.roleName == 'Admin'){
         });
       } catch (error) {
         console.error('Error retrieving roles:', error);
-        return res.status(500).json({ message: 'Internal server error' });
+        return res.status(500).json({code :500,  message: 'Internal server error' });
       }
 
 
@@ -109,7 +157,7 @@ else if (req.roleName == 'Users' || req.roleName == 'Manager'){
 router.delete('/:id', authenticateToken,  async (req, res) => {
 
     if (! mongoose.Types.ObjectId.isValid(req.params.id)){
-        return res.json({ code : 402 , message :'not valid id ' });
+        return res.json({ code : 400 , message :'not valid id ' });
 
     }
  else {
@@ -131,7 +179,7 @@ else if (req.roleName == "Users" || req.roleName == "Manager"  ){
 
     const joggingEntry = await JoggingEntry.findOne({ id: req._id });
     if(!joggingEntry){
-        return res.json({code : 402 , message : 'there is no record with this id '})
+        return res.json({code : 400 , message : 'there is no record with this id '})
     }
     else if (joggingEntry.user !=  req.userId) {
         return res.json({code : 401 , message : 'You are not authorized to delete this record   '})
@@ -161,14 +209,14 @@ else if (req.roleName == "Users" || req.roleName == "Manager"  ){
   router.put('/:id',  authenticateToken ,  async (req, res) => {
     let { id  = '', date = '' , time = '' ,distance = '' ,  location ='' , user = ''} =  req.body;
     if (! mongoose.Types.ObjectId.isValid(req.params.id)){
-        return res.json({ code : 402 , message :'not valid id ' });
+        return res.status(400).json({ code : 400 , message :'not valid id ' });
         
     }
     else {
     try {
 
         if (id == '' || date  == '', distance == '' ||time == '' || location == '' || user == ''  ){
-            return res.json({code : 402 , message : 'all field are required '})
+            return res.status(400).json({code : 400 , message : 'all field are required '})
         }
 
 
@@ -187,10 +235,13 @@ else if (req.roleName == "Users" || req.roleName == "Manager"  ){
               
                 console.log(number); // Output: the converted number
               } catch (error) {
+                return res.status(400).json({code : 400 , message :'Error converting parameter to number'
+
+                })
                 console.error('Error converting parameter to number:', error);
               } 
               if (time < 0 ||  distance  < 0 ) {
-                return res.json({code : 402 , message :'time or distance is not valid number '
+                return res.status(400).json({code : 400 , message :'time or distance is not valid number '
 
                 })
               } 
@@ -201,13 +252,13 @@ else if (req.roleName == "Users" || req.roleName == "Manager"  ){
 
                 }
                 catch(err){
-                    return res.json({code :402 , message : 'not valid date '})
+                    return res.status(400).json({code :400 , message : 'not valid date '})
                 }
                 
 
                 const  updatedUser = User.find({id : user}) ;
                 if (!updatedUser){
-                    res.json({code :402 , message : 'not valid user for update filed'})
+                    res.status(400).json({code :400 , message : 'not valid user for update filed'})
                 }
 
                 
@@ -225,7 +276,7 @@ else if (req.roleName == "Users" || req.roleName == "Manager"  ){
         runValidators: true,
       });
       if (!joggingEntry) {
-        return res.json({ code :404 , message : 'Jogging Entry not found' });
+        return res.status(404).json({ code :404 , message : 'Jogging Entry not found' });
       }
       res.json({code : 200 , message : 'data updated' , data : joggingEntry});
     }
@@ -233,7 +284,7 @@ else if (req.roleName == "Users" || req.roleName == "Manager"  ){
 
         const joggingEntry = await JoggingEntry.find({id : req.params.id });
         if (!joggingEntry){
-            return res.json({ code :404 , message : 'Jogging Entry not found' });
+            return res.status(404).json({ code :404 , message : 'Jogging Entry not found' });
 
         }
         else {
@@ -246,7 +297,7 @@ else if (req.roleName == "Users" || req.roleName == "Manager"  ){
               joggingEntry.save();
 
 
-            return res.json({ code :200 , message : 'record updated'});
+            return res.status(200).json({ code :200 , message : 'record updated'});
 
             
 
@@ -263,7 +314,7 @@ else if (req.roleName == "Users" || req.roleName == "Manager"  ){
 
 } catch (error) {
       console.error('Error updating jogging entry:', error);
-      res.json({ code :500 , message: 'Internal Server Error' });
+      res.status(500).json({ code :500 , message: 'Internal Server Error' });
     }
 
     
@@ -274,12 +325,12 @@ else if (req.roleName == "Users" || req.roleName == "Manager"  ){
 
 
 
-router.get('/api/data', async (req, res) => {
+router.get('/weeklyReport', async (req, res) => {
   try {
     const result = await JoggingEntry.aggregate([
       {
         $group: {
-          _id: { $week: '$date' },
+          _id: { $isoWeek: '$date' },
           entries: { $push: '$$ROOT' },
         },
       },
@@ -288,7 +339,7 @@ router.get('/api/data', async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Failed to fetch data:', error);
-    res.status(500).send('An error occurred');
+    res.status(500).json({code :500,message :'An error occurred'});
   }
 });
   
