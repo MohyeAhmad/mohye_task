@@ -8,11 +8,18 @@ const authenticateToken = require('./../middleware/authMiddleware');
 
 
 
-router.post('/jogging', authenticateToken , (req, res) => {
-    const { date, distance, time, location , user  } = req.body;
+router.post('/', authenticateToken , (req, res) => {
+    const { date = '', distance = '', time = '', location = '' , user = req.userId } = req.body;
+
+
+    if (date == '' || distance == '' || time == '' || location == '' ){
+      res.json({code :402 ,message :  'all field are required '})
+    }
+    
+    else {
     
   
-if (req.roleName == "Users" || req.roleName == "Manager"){
+if ((req.roleName == "Users" || req.roleName == "Manager") && user == ''){
 
     user = req.userId; 
 }
@@ -32,6 +39,7 @@ if (req.roleName == "Users" || req.roleName == "Manager"){
       .catch(error => {
         res.status(500).json({ error: 'Failed to create jogging entry' });
       });
+    }
   });
 
 
@@ -262,6 +270,27 @@ else if (req.roleName == "Users" || req.roleName == "Manager"  ){
 }
     
   });
+
+
+
+
+router.get('/api/data', async (req, res) => {
+  try {
+    const result = await JoggingEntry.aggregate([
+      {
+        $group: {
+          _id: { $week: '$date' },
+          entries: { $push: '$$ROOT' },
+        },
+      },
+    ]);
+
+    res.json(result);
+  } catch (error) {
+    console.error('Failed to fetch data:', error);
+    res.status(500).send('An error occurred');
+  }
+});
   
 
 

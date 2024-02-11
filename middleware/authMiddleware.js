@@ -7,7 +7,7 @@ const authenticateToken = (req, res, next) => {
 
   if (!token) {
    
-    return res.status(401).json({ message: 'Authorization token not provided' });
+    return res.status(401).json({code :401 , message: 'Authorization token not provided' });
   }
 
   try {
@@ -19,7 +19,7 @@ const authenticateToken = (req, res, next) => {
     next(); 
   } catch (error) {
    
-    return res.status(401).json({ message: 'Invalid or expired token' + error });
+    return res.status(401).json({ code :401 , message: 'Invalid or expired token' + error });
   }
 };
 
